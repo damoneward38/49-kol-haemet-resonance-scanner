@@ -1,0 +1,57 @@
+<div class="device-screen">
+  <!-- Left — waveforms -->
+  <div class="waveform-area">
+    <div>
+      <div class="display-label">Time Domain Waveform</div>
+      <canvas id="mainWave" width="520" height="130"></canvas>
+    </div>
+    <div>
+      <div class="display-label">Frequency Spectrum (FFT)</div>
+      <canvas id="spectrumBar" width="520" height="90"></canvas>
+    </div>
+    <div>
+      <div class="display-label">Waterfall — Frequency Over Time</div>
+      <canvas id="waterfallCanvas" width="520" height="80"></canvas>
+    </div>
+  </div>
+
+  <!-- Right — readings -->
+  <div class="readings-panel">
+    <div class="reading-card">
+      <div class="reading-label">Dominant Frequency</div>
+      <div class="reading-value" id="dom-freq">--- Hz</div>
+      <div class="reading-sub" id="dom-note">Awaiting input</div>
+      <div class="confidence-bar"><div class="confidence-fill" id="conf-fill" style="width:0%;"></div></div>
+    </div>
+    <div class="reading-card">
+      <div class="reading-label">Peak Amplitude</div>
+      <div class="reading-value gold" id="peak-amp">--- dB</div>
+      <div class="reading-sub" id="amp-sub">Signal level</div>
+    </div>
+    <div class="reading-card">
+      <div class="reading-label">Resonant Match</div>
+      <div class="reading-value green" id="res-match">---</div>
+      <div class="material-tag" id="mat-tag" style="background:rgba(0,245,255,.1);color:var(--cyan);">No material locked</div>
+    </div>
+    <div class="reading-card">
+      <div class="reading-label">Harmonic Series</div>
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;" id="harmonic-list">
+        <div style="font-size:.72rem;color:rgba(255,255,255,.25);">Scan to detect</div>
+      </div>
+    </div>
+    <div class="reading-card">
+      <div class="reading-label">Suggested Tuning</div>
+      <div class="reading-value" id="tune-suggest" style="font-size:1.1rem;color:var(--gold);">---</div>
+      <div class="reading-sub" id="tune-sub">For acoustic attack</div>
+    </div>
+  </div>
+</div>
+
+<div class="device-controls">
+  <button class="ctrl-btn cb-scan" onclick="startScan()">📡 Scan</button>
+  <button class="ctrl-btn cb-stop" style="border:none;" onclick="stopScan()">■ Stop</button>
+  <button class="ctrl-btn cb-sweep" style="border:none;" onclick="go('sweep')">📊 Sweep</button>
+  <button class="ctrl-btn cb-tune" style="border:none;" onclick="go('tuner')">🎛️ Tune</button>
+  <button class="ctrl-btn cb-lock" style="border:none;" onclick="lockFrequency()">🔒 Lock Freq</button>
+  <div class="mode-display">Mode: <b id="scan-mode-display">STANDBY</b></div>
+</div>
