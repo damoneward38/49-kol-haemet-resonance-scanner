@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KOL HA'EMET — Resonance Scanner</title>
 <style>
@@ -66,8 +67,9 @@ canvas{width:100%;background:#020608;border:1px solid rgba(0,245,255,.08);border
 <header>
   <div class="badge">☦ Acoustic Resonance Laboratory</div>
   <h1>KOL HA'EMET <small>· קוֹל הָאֱמֶת · THE VOICE OF TRUTH</small></h1>
-  <div class="sub">Real-time spectral scanner · FFT analysis · Material resonance matching</div>
+  <div class="sub">Real-time audio spectrum visualizer · FFT display · no material identification</div>
 </header>
+<div role="note" style="margin:8px 14px;padding:10px 14px;background:#252116;color:#fef3c7;border:1px solid #80651e;border-radius:8px;font-size:12px">AUDIO SPECTRUM TOOL: microphone mode displays incoming sound frequencies; synthetic/manual modes are generated or entered values. This is not a calibrated material-resonance identifier, medical scanner, or diagnostic instrument.</div>
 <main>
   <div class="device">
     <div class="device-screen">
@@ -135,7 +137,7 @@ canvas{width:100%;background:#020608;border:1px solid rgba(0,245,255,.08);border
 
 <script>
 const slots=['🎶 Active Susceptibility','🎻 Material Resonance','⚡ Energy Absorption','🎙️ Vocal Formant','📡 Standing Wave','🪞 Geometric Reflection','💧 Molecular Orbital','📍 Spatial Address'];
-let audioCtx=null,analyser=null,master=null,freqData,timeData,nullSource=null,mode='STANDBY',recording=false,lockedFreq=null;
+let audioCtx=null,analyser=null,master=null,freqData=new Uint8Array(1024),timeData=new Uint8Array(2048),nullSource=null,mode='STANDBY',recording=false,lockedFreq=null;
 let waterfall=[];
 
 const cMain=document.getElementById('mainWave'),cMainCtx=cMain.getContext('2d');
@@ -325,21 +327,22 @@ function draw(){
   // Spectrum
   cSpecCtx.fillStyle='#020608';cSpecCtx.fillRect(0,0,cSpec.width,cSpec.height);
   let peak=0,peakIdx=0;
-  for(let i=1;i<analyser?(analyser.frequencyBinCount/2):100;i++){
+  const bins=analyser ? analyser.frequencyBinCount : freqData.length;
+  for(let i=1;i<Math.floor(bins/2);i++){
     const v=freqData[i*2]||0;
     if(v>peak){peak=v;peakIdx=i*2;}
     const h=(v/255)*78;
-    const x=(i/analyser.frequencyBinCount*2)*cSpec.width;
+    const x=(i/bins*2)*cSpec.width;
     cSpecCtx.fillStyle=`rgba(${Math.min(255,255-v)},${Math.min(255,v)},255,${0.25+v/400})`;
     cSpecCtx.fillRect(x,cSpec.height-h,Math.max(1,cSpec.width/200),h);
   }
   // peak line
   if(peak>30&&mode!=='TUNED'&&mode!=='SWEEP'){
-    const dom=analyser.sampleRate*peakIdx/analyser.fftSize;
+    const dom=(analyser ? analyser.sampleRate : 48000)*peakIdx/(analyser ? analyser.fftSize : timeData.length);
     if(dom>18&&dom<12000&&Date.now()%4===0)setDominant(dom,Math.round(40+peak/2.5));
   }
   cSpecCtx.fillStyle=peak>120?'rgba(0,245,255,.4)':'rgba(255,215,0,.3)';
-  cSpecCtx.fillRect((peakIdx/analyser.frequencyBinCount*2)*cSpec.width,-20,2,cSpec.height+20);
+  cSpecCtx.fillRect((peakIdx/bins*2)*cSpec.width,-20,2,cSpec.height+20);
 
   // Waterfall
   const row=performance.now()%250<2;

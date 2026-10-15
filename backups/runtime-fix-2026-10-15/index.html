@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KOL HA'EMET — Resonance Scanner</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#03090d;--panel:#07131a;--card:#0a1a24;--cyan:#00f5ff;--gold:#ffd700;--green:#00ff88;--amber:#ff8c00;--red:#ff5370;--text:#c8d6e5;--muted:#5a7186;--border:rgba(0,245,255,.12)}
+body{background:radial-gradient(ellipse at 50% 0%,#06202c 0%,var(--bg) 55%);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh}
+header{padding:20px 24px;border-bottom:1px solid var(--border);text-align:center}
+.badge{font-size:10px;letter-spacing:3px;color:var(--cyan);font-family:monospace;text-transform:uppercase}
+h1{font-size:clamp(22px,5vw,38px);font-weight:900;color:#fff;letter-spacing:1px;margin-top:4px}
+h1 small{color:var(--gold);font-weight:400;font-size:.55em;letter-spacing:3px}
+.sub{font-size:11px;color:var(--muted);margin-top:6px}
+main{max-width:1100px;margin:0 auto;padding:20px}
+.device{background:var(--panel);border:1px solid var(--border);border-radius:20px;overflow:hidden}
+.device-screen{display:grid;grid-template-columns:1fr 380px;gap:0}
+@media(max-width:900px){.device-screen{grid-template-columns:1fr}}
+.waveform-area{padding:20px;display:flex;flex-direction:column;gap:16px}
+.display-label{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;font-family:monospace}
+canvas{width:100%;background:#020608;border:1px solid rgba(0,245,255,.08);border-radius:8px;display:block}
+.readings-panel{border-left:1px solid var(--border);padding:20px;display:flex;flex-direction:column;gap:12px;background:rgba(0,0,0,.2)}
+.reading-card{padding:14px 16px;border-radius:12px;background:var(--card);border:1px solid var(--border)}
+.reading-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-family:monospace}
+.reading-value{font-size:24px;font-weight:800;font-family:monospace;color:var(--cyan);margin-top:4px}
+.reading-value.gold{color:var(--gold)}
+.reading-value.green{color:var(--green)}
+.reading-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.confidence-bar{height:5px;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;margin-top:8px}
+.confidence-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--gold));width:0%;transition:width .3s ease}
+.material-tag{font-size:10px;font-family:monospace;padding:4px 10px;border-radius:99px;display:inline-block;margin-top:6px}
+.harmonic-item{font-family:monospace;font-size:11px;padding:4px 8px;border-radius:6px;background:rgba(255,255,255,.02);display:flex;justify-content:space-between}
+.harmonic-item .h-hz{color:var(--cyan);font-weight:700}
+.harmonic-item .h-amp{color:var(--muted)}
+.device-controls{display:flex;gap:8px;padding:16px 20px;border-top:1px solid var(--border);align-items:center;flex-wrap:wrap}
+.ctrl-btn{padding:12px 20px;border-radius:10px;border:1px solid;font-family:inherit;font-weight:700;font-size:12px;cursor:pointer;transition:all .2s}
+.ctrl-btn:active{transform:scale(.97)}
+.cb-scan{background:linear-gradient(135deg,#00e5ff,#0055ff);border-color:transparent;color:#001a2e;box-shadow:0 0 16px rgba(0,229,255,.2);font-size:14px;padding:13px 26px}
+.cb-scan:hover{filter:brightness(1.1)}
+.cb-scan.recording{background:linear-gradient(135deg,#ff5370,#ff2222);color:#fff;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+.cb-stop,.cb-sweep,.cb-tune,.cb-lock{background:rgba(0,229,255,.06);border-color:rgba(0,229,255,.2);color:var(--cyan)}
+.cb-lock{background:rgba(255,215,0,.06);border-color:rgba(255,215,0,.25);color:var(--gold)}
+.mode-display{margin-left:auto;font-size:11px;color:var(--muted);font-family:monospace}
+.mode-display b{color:var(--cyan)}
+.source-select{display:flex;gap:8px;margin-left:12px}
+.src-btn{padding:6px 12px;border-radius:8px;font-size:10px;font-family:monospace;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer}
+.src-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,229,255,.08)}
+.stdin{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 20px;z-index:40;display:none;width:min(90vw,460px)}
+.stdin.show{display:block}
+.stdin input{width:100%;padding:10px;background:#020608;border:1px solid var(--border);border-radius:8px;color:#fff;font-family:monospace;font-size:14px;outline:none;margin-bottom:8px}
+.stdin input:focus{border-color:var(--cyan)}
+.stdin .row{display:flex;gap:8px}
+.stdin button{flex:1;padding:10px;border-radius:8px;border:1px solid var(--cyan);background:rgba(0,229,255,.08);color:var(--cyan);font-weight:700;cursor:pointer;font-family:inherit;font-size:12px}
+.stdin .close-btn{border-color:var(--muted);color:var(--muted);background:transparent;flex:0 0 44px}
+.scan-log{margin-top:16px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+.scan-log h3{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;font-family:monospace;margin-bottom:10px}
+.log-entry{font-family:monospace;font-size:11px;color:var(--muted);padding:6px 0;border-bottom:1px solid rgba(255,255,255,.03);line-height:1.6}
+.log-entry .t{color:var(--muted)}
+.log-entry .k{color:var(--cyan)}
+.log-entry .msg{color:var(--text)}
+</style>
+</head>
+<body>
+<header>
+  <div class="badge">☦ Acoustic Resonance Laboratory</div>
+  <h1>KOL HA'EMET <small>· קוֹל הָאֱמֶת · THE VOICE OF TRUTH</small></h1>
+  <div class="sub">Real-time spectral scanner · FFT analysis · Material resonance matching</div>
+</header>
+<main>
+  <div class="device">
+    <div class="device-screen">
+      <div class="waveform-area">
+        <div><div class="display-label">Time Domain Waveform</div><canvas id="mainWave" width="640" height="130"></canvas></div>
+        <div><div class="display-label">Frequency Spectrum (FFT)</div><canvas id="spectrumBar" width="640" height="110"></canvas></div>
+        <div><div class="display-label">Waterfall — Frequency Over Time</div><canvas id="waterfallCanvas" width="640" height="90"></canvas></div>
+      </div>
+      <div class="readings-panel">
+        <div class="reading-card">
+          <div class="reading-label">Dominant Frequency</div>
+          <div class="reading-value" id="domFreq">--- Hz</div>
+          <div class="reading-sub" id="domNote">Awaiting input</div>
+          <div class="confidence-bar"><div class="confidence-fill" id="confFill"></div></div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Peak Amplitude</div>
+          <div class="reading-value gold" id="peakAmp">--- dB</div>
+          <div class="reading-sub" id="ampSub">Signal level</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Resonant Match</div>
+          <div class="reading-value green" id="resMatch">---</div>
+          <div class="material-tag" id="matTag" style="background:rgba(0,245,255,.1);color:var(--cyan)">No material locked</div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Harmonic Series</div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px" id="harmonicList"><div style="font-size:11px;color:rgba(255,255,255,.25)">Scan to detect</div></div>
+        </div>
+        <div class="reading-card">
+          <div class="reading-label">Suggested Tuning</div>
+          <div class="reading-value" id="tuneSuggest" style="font-size:16px;color:var(--gold)">---</div>
+          <div class="reading-sub" id="tuneSub">For acoustic attack</div>
+        </div>
+      </div>
+    </div>
+    <div class="device-controls">
+      <button class="ctrl-btn cb-scan" id="scanBtn" onclick="startScan()">📡 Scan</button>
+      <button class="ctrl-btn cb-stop" onclick="stopScan()">■ Stop</button>
+      <button class="ctrl-btn cb-sweep" onclick="go('sweep')">📊 Sweep</button>
+      <button class="ctrl-btn cb-tune" onclick="go('tuner')">🎛️ Tune</button>
+      <button class="ctrl-btn cb-lock" onclick="lockFrequency()">🔒 Lock Freq</button>
+      <div class="source-select">
+        <button class="src-btn active" id="srcMic" onclick="setSource('mic')">MIC</button>
+        <button class="src-btn" id="srcSyn" onclick="setSource('syn')">SYN</button>
+        <button class="src-btn" id="srcMan" onclick="setSource('man')">MAN</button>
+      </div>
+      <div class="mode-display">Mode: <b id="scanMode">STANDBY</b></div>
+    </div>
+  </div>
+
+  <div class="stdin" id="stdin">
+    <input type="number" id="manHz" placeholder="Enter frequency (Hz) — e.g. 528">
+    <div class="row">
+      <button onclick="manualAnalyze()">⚡ Analyze</button>
+      <button class="close-btn" onclick="document.getElementById('stdin').classList.remove('show')">✕</button>
+    </div>
+  </div>
+
+  <div class="scan-log">
+    <h3>SCAN LOG</h3>
+    <div id="scanLog"></div>
+  </div>
+</main>
+
+<script>
+const slots=['🎶 Active Susceptibility','🎻 Material Resonance','⚡ Energy Absorption','🎙️ Vocal Formant','📡 Standing Wave','🪞 Geometric Reflection','💧 Molecular Orbital','📍 Spatial Address'];
+let audioCtx=null,analyser=null,master=null,freqData,timeData,nullSource=null,mode='STANDBY',recording=false,lockedFreq=null;
+let waterfall=[];
+
+const cMain=document.getElementById('mainWave'),cMainCtx=cMain.getContext('2d');
+const cSpec=document.getElementById('spectrumBar'),cSpecCtx=cSpec.getContext('2d');
+const cWat=document.getElementById('waterfallCanvas'),cWatCtx=cWat.getContext('2d');
+
+function initAudio(){
+  if(audioCtx)return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=2048;
+  analyser.smoothingTimeConstant=.75;
+  freqData=new Uint8Array(analyser.frequencyBinCount);
+  timeData=new Uint8Array(analyser.fftSize);
+  master=audioCtx.createGain();master.gain.value=1;master.connect(analyser);
+  nullSource=audioCtx.createConstantSource();nullSource.offset.value=0;nullSource.connect(master);nullSource.start();
+}
+
+function setMode(m){mode=m;document.getElementById('scanMode').textContent=m;}
+
+async function startScan(){
+  initAudio();
+  if(recording){stopScan();return;}
+  recording=true;
+  const btn=document.getElementById('scanBtn');
+  btn.textContent='■ RECORDING';
+  btn.className='ctrl-btn cb-scan recording';
+  setMode('SCANNING');
+  log('Scan started — capturing spectral window');
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false}});
+    const src=audioCtx.createMediaStreamSource(stream);
+    src.connect(master);
+  }catch(e){log('Mic unavailable — running synthetic source');}
+}
+
+function stopScan(){
+  recording=false;
+  const btn=document.getElementById('scanBtn');
+  btn.textContent='📡 Scan';
+  btn.className='ctrl-btn cb-scan';
+  setMode('STANDBY');
+  log('Scan stopped');
+}
+
+function go(m){
+  initAudio();
+  dispatchEvent(new CustomEvent('sweep-'+m));
+  if(m==='sweep'){
+    setMode('SWEEP');
+    let f=20;
+    clearInterval(window._sweep);
+    window._sweep=setInterval(()=>{
+      f=Math.round(f*1.08);
+      if(f>12000){clearInterval(window._sweep);setMode('STANDBY');log('Sweep complete — 20Hz → 12kHz');return;}
+      manualAnalyzeHz(f);
+    },90);
+    log('Frequency sweep initiated 20 Hz → 12 kHz');
+  }else if(m==='tuner'){
+    setMode('TUNER');
+    document.getElementById('stdin').classList.add('show');
+    document.getElementById('manHz').focus();
+    log('Tuner engaged — await manual frequency');
+  }
+}
+
+function manualAnalyze(){
+  const v=parseFloat(document.getElementById('manHz').value);
+  if(v&&v>0&&v<=20000)manualAnalyzeHz(v);
+  document.getElementById('stdin').classList.remove('show');
+}
+
+function manualAnalyzeHz(hz){
+  setDominant(hz,Math.round(30+Math.random()*40));
+  log('Manual reference: '+hz.toFixed(2)+' Hz');
+  document.getElementById('scanMode').textContent='TUNED';
+}
+
+function lockFrequency(){
+  const dom=parseFloat(document.getElementById('domFreq').textContent);
+  if(isNaN(dom))return;
+  lockedFreq=dom;
+  document.getElementById('matTag').textContent='🔒 Locked @ '+dom.toFixed(2)+' Hz';
+  document.getElementById('matTag').style.background='rgba(255,215,0,.1)';
+  document.getElementById('matTag').style.color='var(--gold)';
+  log('Frequency locked: '+dom.toFixed(2)+' Hz');
+}
+
+function setDominant(hz,confidence){
+  hz=Math.round(hz*100)/100;
+  const note=hzToNote(hz);
+  document.getElementById('domFreq').textContent=hz+' Hz';
+  document.getElementById('domNote').textContent=note.name+' · '+note.desc;
+  document.getElementById('confFill').style.width=confidence+'%';
+  document.getElementById('peakAmp').textContent=(-0.5+(Date.now()%330)/1000).toFixed(2)+' dB';
+  findMaterial(hz);
+  harmonicSeries(hz);
+  document.getElementById('tuneSuggest').textContent=suggestTuning(hz);
+  document.getElementById('tuneSub').textContent=slots[Math.floor(Math.random()*slots.length)];
+}
+
+function hzToNote(hz){
+  const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const n=Math.round(12*(Math.log(hz/440)/Math.log(2)))+69;
+  const cents=1200*(Math.log(hz/440)/Math.log(2))-(n-69)*100;
+  return{name:names[n%12]+(Math.floor(n/12)-1),desc:(cents>0?'+':'')+Math.round(cents)+' cents'};
+}
+
+const MATERIALS=[
+  {name:'Orichalcum',f:298.88,color:'#ffd700'},
+  {name:'Copper',f:217.14,color:'#ff8c00'},
+  {name:'Sandstone',f:132.5,color:'#e0b070'},
+  {name:'Lapis Lazuli',f:221.23,color:'#4af'},
+  {name:'Gold',f:528,color:'#ffd700'},
+  {name:'Silver',f:210.42,color:'#ddd'},
+  {name:'Clay Fired',f:120,color:'#c88'},
+  {name:'Basalt',f:98,color:'#666'},
+  {name:'Crystal Quartz',f:963,color:'#a855f7'},
+  {name:'Cedar',f:144,color:'#b77'},
+  {name:'Bronze',f:183.58,color:'#ff8c00'},
+  {name:'Limestone',f:126.22,color:'#ffa500'}
+];
+function findMaterial(hz){
+  let best=null,bestDiff=1e9;
+  MATERIALS.forEach(m=>{
+    let d=Math.abs(hz-m.f);
+    let f=m.f;
+    while(f>0){d=Math.min(d,Math.abs(hz-f));f/=2;}
+    f=m.f;
+    while(f<hz*2){d=Math.min(d,Math.abs(hz-f));f*=2;}
+    if(d<bestDiff){bestDiff=d;best=m;}
+  });
+  const locked=bestDiff<Math.max(3,hz*0.02);
+  document.getElementById('resMatch').textContent=locked?'MATCH':'---';
+  document.getElementById('matTag').textContent=locked?'✓ Resonant with '+best.name:best.name+' (partial)';
+  if(!locked)document.getElementById('matTag').textContent='Closest: '+best.name+' ±'+bestDiff.toFixed(1)+' Hz';
+  document.getElementById('matTag').style.background=locked?'rgba(0,255,136,.1)':'rgba(0,245,255,.1)';
+  document.getElementById('matTag').style.color=locked?'var(--green)':'var(--cyan)';
+}
+function harmonicSeries(hz){
+  const list=[];
+  for(let i=1;i<=6;i++){
+    if(hz/i>0.5)list.unshift({hz:hz/i,amp:Math.max(20,60-i*7)});
+  }
+  document.getElementById('harmonicList').innerHTML=list.map(h=>'<div class="harmonic-item"><span class="h-hz">'+h.hz.toFixed(2)+' Hz</span><span class="h-amp">'+h.amp+'%</span></div>').join('');
+}
+function suggestTuning(hz){
+  const targets=[[7.83,'Schumann'],[40,'Gamma'],[111,'Holy'],[432,'Natural'],[528,'DNA'],[741,'Awakening'],[852,'Third Eye'],[963,'Crown']];
+  let best=null,bestD=1e9;
+  targets.forEach(([f,n])=>{
+    const d=Math.abs(hz-f);
+    if(d<bestD){bestD=d;best={f,n};}
+  });
+  if(bestD<30)return best.n+' — '+best.f+' Hz';
+  const oct=(hz>1000)?Math.round(hz/528)*528:hz*Math.round(528/Math.max(hz,1));
+  return 'Aim: '+oct.toFixed(0)+' Hz';
+}
+
+function log(msg){
+  const t=new Date().toLocaleTimeString();
+  const el=document.createElement('div');
+  el.className='log-entry';
+  el.innerHTML='<span class="t">['+t+']</span> <span class="msg">'+msg+'</span>';
+  document.getElementById('scanLog').prepend(el);
+}
+
+// Live analysis + drawing
+function draw(){
+  if(audioCtx&&analyser){
+    analyser.getByteTimeDomainData(timeData);
+    analyser.getByteFrequencyData(freqData);
+  }else{
+    timeData.fill(128);freqData.fill(0);
+    freqData[5]=Math.random()*200;freqData[50]=Math.random()*160;
+  }
+
+  // Main waveform
+  cMainCtx.fillStyle='#020608';cMainCtx.fillRect(0,0,cMain.width,cMain.height);
+  cMainCtx.beginPath();
+  for(let i=0;i<timeData.length;i++){
+    const x=i/cMain.width*240;
+    const y=cMain.height/2+(timeData[i]-128)/128*cMain.height/2;
+    i===0?cMainCtx.moveTo(x,y):cMainCtx.lineTo(x,y);
+  }
+  cMainCtx.strokeStyle='rgba(0,245,255,.8)';cMainCtx.lineWidth=1.5;cMainCtx.stroke();
+
+  // Spectrum
+  cSpecCtx.fillStyle='#020608';cSpecCtx.fillRect(0,0,cSpec.width,cSpec.height);
+  let peak=0,peakIdx=0;
+  for(let i=1;i<analyser?(analyser.frequencyBinCount/2):100;i++){
+    const v=freqData[i*2]||0;
+    if(v>peak){peak=v;peakIdx=i*2;}
+    const h=(v/255)*78;
+    const x=(i/analyser.frequencyBinCount*2)*cSpec.width;
+    cSpecCtx.fillStyle=`rgba(${Math.min(255,255-v)},${Math.min(255,v)},255,${0.25+v/400})`;
+    cSpecCtx.fillRect(x,cSpec.height-h,Math.max(1,cSpec.width/200),h);
+  }
+  // peak line
+  if(peak>30&&mode!=='TUNED'&&mode!=='SWEEP'){
+    const dom=analyser.sampleRate*peakIdx/analyser.fftSize;
+    if(dom>18&&dom<12000&&Date.now()%4===0)setDominant(dom,Math.round(40+peak/2.5));
+  }
+  cSpecCtx.fillStyle=peak>120?'rgba(0,245,255,.4)':'rgba(255,215,0,.3)';
+  cSpecCtx.fillRect((peakIdx/analyser.frequencyBinCount*2)*cSpec.width,-20,2,cSpec.height+20);
+
+  // Waterfall
+  const row=performance.now()%250<2;
+  if(recording||mode==='SCANNING'||mode==='SWEEP')waterfall.unshift(freqData.slice(0,Math.floor(analyser?analyser.frequencyBinCount/2:100)));
+  if(waterfall.length>85)waterfall.pop();
+  cWatCtx.fillStyle='#020608';cWatCtx.fillRect(0,0,cWat.width,cWat.height);
+  waterfall.forEach((row,i)=>{
+    const y=i*(cWat.height/85);
+    for(let x=0;x<Math.min(row.length,cWat.width);x+=2){
+      const v=row[x]||0;
+      if(v>20){
+        cWatCtx.fillStyle=`rgba(${Math.min(255,600-v*2)},${Math.min(255,v*1.5)},255,${v/900})`;
+        cWatCtx.fillRect(x/cWat.width*2*cWat.width,y,1,cWat.height/85);
+      }
+    }
+  });
+  requestAnimationFrame(draw);
+}
+
+let source='mic',synOsc=null;
+function setSource(s){
+  source=s;
+  document.querySelectorAll('.src-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('src'+s.charAt(0).toUpperCase()+s.slice(1)).classList.add('active');
+  if(s==='man')document.getElementById('stdin').classList.add('show');
+  else document.getElementById('stdin').classList.remove('show');
+  log('Source: '+(s==='mic'?'Microphone (real-time)':s==='syn'?'Synthetic tone generator':'Manual frequency entry'));
+  if(s==='syn'){
+    initAudio();
+    if(!synOsc){synOsc=audioCtx.createOscillator();synOsc.type='sine';synOsc.frequency.value=432;synOsc.connect(master);synOsc.start();}
+    setDominant(432,85);
+    setMode('SYNTH');
+  }else{
+    if(synOsc){try{synOsc.stop();}catch{}synOsc=null;}
+    setMode('STANDBY');
+  }
+}
+
+log('Resonance scanner online — Kol Ha\'Emet v2.0');
+setMode('STANDBY');
+setDominant(432,50);
+draw();
+</script>
+</body>
+</html>
